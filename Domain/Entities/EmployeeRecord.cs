@@ -10,17 +10,13 @@ namespace Domain.Entities
     {
         public string EmployeeID { get; set; }
         public string Name { get; set; }
-        public DateTime Date { get; set; }
-        public TimeSpan EntryTime { get; set; }
-        public TimeSpan ExitTime { get; set; }
+        public DateTime LogDateTime { get; set; } // logDate and logTime combined together
 
-        public EmployeeRecord(DateTime date, string employeeId, string name, TimeSpan entryTime, TimeSpan exitTime)
+        public EmployeeRecord(string employeeId, string name, DateTime logDateTime)
         {
-            Date = date;
             EmployeeID = employeeId;
             Name = name;
-            EntryTime = entryTime;
-            ExitTime = exitTime;
+            LogDateTime = logDateTime;
         }
     }
 }
