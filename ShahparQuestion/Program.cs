@@ -1,9 +1,20 @@
+using BusinessLayer.Interfaces;
+using BusinessLayer.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+builder.Services.AddTransient<ITextFileEmployeeLogRetrieverService, TextFileEmployeeLogRetrieverService>();
+builder.Services.AddTransient<ITimeLogProcessorService, LogTimeProcessorService>();
+builder.Services.AddTransient<IExcelReportGeneratorService, ExcelReportGeneratorService>();
+builder.Services.AddTransient<IEmployeeRecordsValidationService, EmployeeRecordsValidationService>();
+
+
 var app = builder.Build();
+
+
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
