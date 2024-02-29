@@ -42,45 +42,62 @@ namespace ShahparQuestion.Controllers
         public async Task<IActionResult> Index(IFormFile file)
         {
             var fileUploadResult = new DataLayer.ViewModels.UploadFileResult();
-            if (file != null && file.Length > 0)
+            try
             {
-                var fileExtension = Path.GetExtension(file.FileName);
-                if (!_checkValidation.IsTextExtension(fileExtension))
+                if (file != null && file.Length > 0)
                 {
-                    fileUploadResult.ErrorMessage = "فایل آپلودی باید متنی با فرمت .txt باشد.";
+                    var fileExtension = Path.GetExtension(file.FileName);
+                    // file extension validation
+                    if (!_checkValidation.IsTextExtension(fileExtension))
+                    {
+                        fileUploadResult.ErrorMessage = "فایل آپلودی باید متنی با فرمت .txt باشد.";
+                        TempData["fileUploadResult"] = JsonConvert.SerializeObject(fileUploadResult);
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    fileUploadResult.FileUploaded = true;
+
+                    // retreieve employee log information using its service
+                    _textFileEmployeeLogRetrieverService.SetFile(file);
+                    var employeeLogResult = await _textFileEmployeeLogRetrieverService.GetEmployeeLogs();
+
+                    // set the structure error from log service
+                    fileUploadResult.StructureError = employeeLogResult.Errors;
+
+                    // check for validation errors 
+                    var validationResult = _employeeRecordsValidationService.Validate(employeeLogResult.Records);
+
+                    // set the validation errors
+                    fileUploadResult.ValidationErrors = validationResult.Errors;
+
+                    // if any validation or structure error was exist, return errror
+                    if (!fileUploadResult.ValidationSuccessful)
+                    {
+                        TempData["fileUploadResult"] = JsonConvert.SerializeObject(fileUploadResult);
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    // convert employee logs to daily-summary logs
+                    var summaryLogs = _logTimeProcessorService.ProcessLogs(employeeLogResult.Records);
+
+                    // generate excel report
+                    _generateExcelReportService.GenerateReport(summaryLogs);
+
+                    var excelFileStream = _generateExcelReportService.ConvertXMlBookToStream();
+
+                    // return generated file to the user
+                    return File(excelFileStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Report.xlsx");
+                }
+                else
+                {
+                    fileUploadResult.ErrorMessage = "لطفا فایلی آپلود کنید.";
                     TempData["fileUploadResult"] = JsonConvert.SerializeObject(fileUploadResult);
                     return RedirectToAction(nameof(Index));
                 }
-
-                fileUploadResult.FileUploaded = true;
-
-                _textFileEmployeeLogRetrieverService.SetFile(file);
-                var employeeLogResult = await _textFileEmployeeLogRetrieverService.GetEmployeeLogs();
-
-                fileUploadResult.StructureError = employeeLogResult.Errors;
-
-                // validation
-                var validationResult = _employeeRecordsValidationService.Validate(employeeLogResult.Records);
-
-                fileUploadResult.ValidationErrors = validationResult.Errors;
-
-                if (!fileUploadResult.ValidationSuccessful)
-                {
-                    TempData["fileUploadResult"] = JsonConvert.SerializeObject(fileUploadResult);
-                    return RedirectToAction(nameof(Index));
-                }
-
-                var summaryLogs = _logTimeProcessorService.ProcessLogs(employeeLogResult.Records);
-
-                _generateExcelReportService.GenerateReport(summaryLogs);
-
-                var excelFileStream = _generateExcelReportService.ConvertXMlBookToStream();
-
-                return File(excelFileStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Report.xlsx");
             }
-            else
+            catch (Exception ex)
             {
-                fileUploadResult.ErrorMessage = "لطفا فایلی آپلود کنید.";
+                fileUploadResult.ErrorMessage = "خطایی پیش آمد. لطفا از درست بودن ساختار فایل خود اطمینان حاصل کنید.";
                 TempData["fileUploadResult"] = JsonConvert.SerializeObject(fileUploadResult);
                 return RedirectToAction(nameof(Index));
             }
