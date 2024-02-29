@@ -12,8 +12,6 @@ public class ExcelReportGeneratorService : IExcelReportGeneratorService
     private XLWorkbook _xmlBook;
     public void GenerateReport(IEnumerable<DailySummary> summaries)
     {
-        //using (var workbook = new XLWorkbook())
-        //{
         var workbook = new XLWorkbook();
         var worksheet = workbook.AddWorksheet("Attendance Report");
         var currentRow = 1;
@@ -35,16 +33,16 @@ public class ExcelReportGeneratorService : IExcelReportGeneratorService
             currentRow++;
             var date = summary.Date;
             var shamsiDate = PersianConventor.ToShamsi(date);
-            bool hasError = false;
-            if (summary.AttendanceTypes.Where(at => at == AttendanceType.Error).Any()) hasError = true;
+            bool canPrintTimeData = true;
+            if (summary.AttendanceTypes.Where(at => at == AttendanceType.Error || at == AttendanceType.Full_Day_Leave).Any()) canPrintTimeData = false;
 
             worksheet.Cell(currentRow, 1).Value = currentRow - 1;
             worksheet.Cell(currentRow, 2).Value = shamsiDate;
             worksheet.Cell(currentRow, 3).Value = PersianConventor.ToDayOfWeek(date.DayOfWeek);
             worksheet.Cell(currentRow, 4).Value = summary.Name;
-            if (hasError)
+            if (!canPrintTimeData)
             {
-                worksheet.Cell(currentRow, 5).Value = AttendanceType.Error.ToPersianString();
+                worksheet.Cell(currentRow, 5).Value = summary.AttendanceTypes.First().ToPersianString();
                 worksheet.Cell(currentRow, 6).Value = "-";
                 worksheet.Cell(currentRow, 7).Value = "-";
                 worksheet.Cell(currentRow, 8).Value = "-";
@@ -59,11 +57,7 @@ public class ExcelReportGeneratorService : IExcelReportGeneratorService
             worksheet.Cell(currentRow, 9).Value = string.Join(", ", summary.TimeRecords.Select(tr => tr.ToString(@"hh\:mm")));
         }
 
-        //workbook.SaveAs(filePath);
-        //_xmlBook = worksheet;
         _xmlBook = workbook;
-        //_xmlBook = worksheet;
-        //}
     }
     public MemoryStream ConvertXMlBookToStream()
     {
