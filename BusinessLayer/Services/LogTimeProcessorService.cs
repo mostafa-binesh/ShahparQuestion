@@ -16,6 +16,28 @@ namespace BusinessLayer.Services
 
             var summaries = new List<DailySummary>();
             var allRecords = records.ToList();
+            var allDates = records.Select(r => r.LogDateTime.Date).Distinct();
+            var allEmployeeIDs = records.Select(r => r.EmployeeID).Distinct();
+
+            // check and creating full day leave records
+            foreach (var date in allDates)
+            {
+                var employeesWithLogs = allRecords.Where(r => r.LogDateTime.Date == date).Select(r => r.EmployeeID).Distinct();
+
+                // selecting employees without logs for this date
+                var employeesWithoutLogs = allEmployeeIDs.Except(employeesWithLogs);
+
+                foreach (var employeeID in employeesWithoutLogs)
+                {
+                    summaries.Add(new DailySummary
+                    {
+                        Date = date,
+                        EmployeeID = employeeID,
+                        Name = allRecords.Where(r => r.EmployeeID == employeeID).Select(r => r.Name).First(),
+                        AttendanceTypes = new List<AttendanceType> { AttendanceType.Full_Day_Leave }
+                    });
+                }
+            }
 
             foreach (var group in groupedByEmployeeAndDate)
             {
@@ -44,7 +66,7 @@ namespace BusinessLayer.Services
                 summaries.Add(summary);
             }
 
-            return summaries;
+            return summaries.OrderBy(s => s.Date).ThenBy(s => s.EmployeeID);
         }
 
 
